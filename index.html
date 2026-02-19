@@ -23,19 +23,26 @@
     }
     h1{ margin: 0 0 14px; }
     .row{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+
     button{
       border: 0;
       padding: 12px 16px;
       border-radius: 999px;
       font-size: 16px;
       cursor: pointer;
+      user-select: none;
+      transition: transform 140ms linear; /* movimiento suave */
     }
+
+    /* Este será el botón evasivo */
     #yes{
+      position: fixed; /* se mueve dentro del viewport */
       background: #111;
       color: white;
     }
+
+    /* Este será normal */
     #no{
-      position: fixed;
       background: white;
     }
   </style>
@@ -51,42 +58,64 @@
   </div>
 
   <script>
-    const noBtn = document.getElementById("no");
     const yesBtn = document.getElementById("yes");
-    const msg = document.getElementById("msg");
+    const noBtn  = document.getElementById("no");
+    const msg    = document.getElementById("msg");
 
     let loopId = null;
 
-    function randomPos(el){
+    function randomPosInsideViewport(el){
       const r = el.getBoundingClientRect();
-      const maxX = window.innerWidth - r.width;
+      const maxX = window.innerWidth  - r.width;
       const maxY = window.innerHeight - r.height;
-      return {
-        x: Math.floor(Math.random() * Math.max(1, maxX)),
-        y: Math.floor(Math.random() * Math.max(1, maxY))
-      };
+
+      // Nunca negativo (por si la pantalla es mini)
+      const x = Math.floor(Math.random() * Math.max(1, maxX));
+      const y = Math.floor(Math.random() * Math.max(1, maxY));
+
+      return { x, y };
     }
 
-    function moveNo(){
-      const {x,y} = randomPos(noBtn);
-      noBtn.style.transform = `translate(${x}px, ${y}px)`;
+    function moveYes(){
+      const { x, y } = randomPosInsideViewport(yesBtn);
+      yesBtn.style.transform = `translate(${x}px, ${y}px)`;
     }
 
-    noBtn.addEventListener("pointerenter", () => {
-      moveNo();
-      if (loopId === null) loopId = setInterval(moveNo, 160);
+    // Centrar el botón al inicio (más bonito)
+    function placeYesNearCenter(){
+      const r = yesBtn.getBoundingClientRect();
+      const x = Math.max(0, Math.floor((window.innerWidth  - r.width)  / 2) - 60);
+      const y = Math.max(0, Math.floor((window.innerHeight - r.height) / 2) + 40);
+      yesBtn.style.transform = `translate(${x}px, ${y}px)`;
+    }
+
+    // ✅ Botón interactivo: inicia loop al detectar hover
+    yesBtn.addEventListener("pointerenter", () => {
+      moveYes(); // se mueve inmediato para evitar el click
+      if (loopId === null) {
+        loopId = setInterval(moveYes, 160); // velocidad del “escape”
+      }
     });
 
-    noBtn.addEventListener("pointerleave", () => {
+    // ✅ Detiene el loop al salir del hover
+    yesBtn.addEventListener("pointerleave", () => {
       clearInterval(loopId);
       loopId = null;
     });
 
-    window.addEventListener("resize", moveNo);
-
-    yesBtn.addEventListener("click", () => {
-      msg.textContent = "Ok, pero con moderación 😌";
+    // Si cambia el tamaño de la ventana, reubica dentro de límites
+    window.addEventListener("resize", () => {
+      if (loopId !== null) moveYes();
+      else placeYesNearCenter();
     });
+
+    // Botón NO (normal) para mostrar mensaje
+    noBtn.addEventListener("click", () => {
+      msg.textContent = "Ok, buena decisión 😌";
+    });
+
+    // Coloca el botón “Sí” al cargar
+    placeYesNearCenter();
   </script>
 </body>
 </html>
