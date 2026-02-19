@@ -1,122 +1,214 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Comida chatarra</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comida Chatarra</title>
   <style>
-    html, body { height: 100%; }
-    body{
-      margin: 0;
-      background: #ff9b21;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background-color: #FF6B6B; /* ← Cambia este color por el tuyo */
       overflow: hidden;
+      position: relative;
+      font-family: sans-serif;
+    }
+
+    /* Papel tapiz de emojis */
+    .wallpaper {
+      position: fixed;
+      inset: 0;
       display: grid;
-      place-items: center;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    }
-    .card{
-      background: rgba(255,255,255,.85);
-      padding: 24px;
-      border-radius: 18px;
-      text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,.15);
-    }
-    h1{ margin: 0 0 14px; }
-    .row{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-
-    button{
-      border: 0;
-      padding: 12px 16px;
-      border-radius: 999px;
-      font-size: 16px;
-      cursor: pointer;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 0;
+      pointer-events: none;
       user-select: none;
-      transition: transform 140ms linear; /* movimiento suave */
     }
 
-    /* Este será el botón evasivo */
-    #yes{
-      position: fixed; /* se mueve dentro del viewport */
-      background: #111;
+    .emoji-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.4rem;
+      width: 80px;
+      height: 80px;
+      opacity: 0.85;
+      animation: float var(--dur) ease-in-out infinite alternate;
+      animation-delay: var(--delay);
+      transform: rotate(var(--rot));
+    }
+
+    @keyframes float {
+      from { transform: rotate(var(--rot)) translateY(0px); }
+      to   { transform: rotate(var(--rot)) translateY(-8px); }
+    }
+
+    /* Contenido central (opcional) */
+    .content {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 24px;
+      padding: 40px 60px;
+      text-align: center;
       color: white;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
-    /* Este será normal */
-    #no{
+    .card h1 {
+      font-size: 3rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin-bottom: 24px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 14px 36px;
+      font-size: 1.3rem;
+      font-weight: 800;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.1s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .btn-no {
       background: white;
+      color: #FF6B6B;
+    }
+
+    .btn-no:hover {
+      transform: scale(1.08);
+    }
+
+    .btn-si {
+      background: #FFE66D;
+      color: #333;
+    }
+
+    .btn-si.fixed {
+      position: fixed;
+      z-index: 999;
+      transition: left 0.3s cubic-bezier(0.22, 1.5, 0.36, 1), top 0.3s cubic-bezier(0.22, 1.5, 0.36, 1);
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>¿Quieres comer gordo? 🍟🍔🍕</h1>
-    <div class="row">
-      <button id="yes">Sí</button>
-      <button id="no">No</button>
+
+  <div class="wallpaper" id="wallpaper"></div>
+
+  <div class="content">
+    <div class="card">
+      <h1>🍟 ¿Quieres comer gordo?</h1>
+      <div class="buttons">
+        <button class="btn btn-no">No</button>
+        <div id="placeholder" style="display:inline-block;"></div>
+        <button class="btn btn-si" id="btnSi">Sí</button>
+      </div>
     </div>
-    <p id="msg" style="margin:14px 0 0;"></p>
   </div>
 
   <script>
-    const yesBtn = document.getElementById("yes");
-    const noBtn  = document.getElementById("no");
-    const msg    = document.getElementById("msg");
+    const btnSi = document.getElementById('btnSi');
+    const ph    = document.getElementById('placeholder');
+    let listo = false;
+    let saltando = false;
 
-    let loopId = null;
+    function saltar() {
+      if (saltando) return;
+      saltando = true;
 
-    function randomPosInsideViewport(el){
-      const r = el.getBoundingClientRect();
-      const maxX = window.innerWidth  - r.width;
-      const maxY = window.innerHeight - r.height;
+      const bw = btnSi.offsetWidth;
+      const bh = btnSi.offsetHeight;
+      const margen = 24;
+      const maxX = window.innerWidth  - bw - margen;
+      const maxY = window.innerHeight - bh - margen;
+      const nx = margen + Math.random() * (maxX - margen);
+      const ny = margen + Math.random() * (maxY - margen);
+      btnSi.style.left = Math.max(margen, Math.min(maxX, nx)) + 'px';
+      btnSi.style.top  = Math.max(margen, Math.min(maxY, ny)) + 'px';
 
-      // Nunca negativo (por si la pantalla es mini)
-      const x = Math.floor(Math.random() * Math.max(1, maxX));
-      const y = Math.floor(Math.random() * Math.max(1, maxY));
-
-      return { x, y };
+      // Bloquear nuevos saltos durante la transición (300ms)
+      setTimeout(() => { saltando = false; }, 320);
     }
 
-    function moveYes(){
-      const { x, y } = randomPosInsideViewport(yesBtn);
-      yesBtn.style.transform = `translate(${x}px, ${y}px)`;
-    }
-
-    // Centrar el botón al inicio (más bonito)
-    function placeYesNearCenter(){
-      const r = yesBtn.getBoundingClientRect();
-      const x = Math.max(0, Math.floor((window.innerWidth  - r.width)  / 2) - 60);
-      const y = Math.max(0, Math.floor((window.innerHeight - r.height) / 2) + 40);
-      yesBtn.style.transform = `translate(${x}px, ${y}px)`;
-    }
-
-    // ✅ Botón interactivo: inicia loop al detectar hover
-    yesBtn.addEventListener("pointerenter", () => {
-      moveYes(); // se mueve inmediato para evitar el click
-      if (loopId === null) {
-        loopId = setInterval(moveYes, 160); // velocidad del “escape”
+    btnSi.addEventListener('mouseenter', () => {
+      if (!listo) {
+        const r = btnSi.getBoundingClientRect();
+        ph.style.width  = r.width  + 'px';
+        ph.style.height = r.height + 'px';
+        btnSi.classList.add('fixed');
+        btnSi.style.left = r.left + 'px';
+        btnSi.style.top  = r.top  + 'px';
+        listo = true;
+        setTimeout(saltar, 20);
+        return;
       }
+      saltar();
     });
 
-    // ✅ Detiene el loop al salir del hover
-    yesBtn.addEventListener("pointerleave", () => {
-      clearInterval(loopId);
-      loopId = null;
+    // También escapar si el cursor se mueve muy cerca (cubre casos donde mouseenter no dispara)
+    document.addEventListener('mousemove', (e) => {
+      if (!listo || saltando) return;
+      const r = btnSi.getBoundingClientRect();
+      const cx = r.left + r.width  / 2;
+      const cy = r.top  + r.height / 2;
+      const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+      if (dist < 60) saltar();
     });
 
-    // Si cambia el tamaño de la ventana, reubica dentro de límites
-    window.addEventListener("resize", () => {
-      if (loopId !== null) moveYes();
-      else placeYesNearCenter();
+    document.addEventListener('pointermove', (e) => {
+      if (!listo || saltando) return;
+      const r = btnSi.getBoundingClientRect();
+      const cx = r.left + r.width  / 2;
+      const cy = r.top  + r.height / 2;
+      const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+      if (dist < 80) saltar();
     });
 
-    // Botón NO (normal) para mostrar mensaje
-    noBtn.addEventListener("click", () => {
-      msg.textContent = "Ok, buena decisión 😌";
-    });
+    btnSi.addEventListener('click', e => e.preventDefault());
 
-    // Coloca el botón “Sí” al cargar
-    placeYesNearCenter();
+
+    const emojis = [
+      '🍕','🍔','🌮','🌯','🍟','🌭','🍿','🥤',
+      '🍦','🍩','🍪','🎂','🍰','🧁','🍫','🍬',
+      '🍭','🥓','🧇','🥞','🧆','🍜','🥡','🍣',
+      '🥨','🧀','🥪','🍱','🥙','🫔','🫕','🍛'
+    ];
+
+    const wallpaper = document.getElementById('wallpaper');
+    const cols = Math.ceil(window.innerWidth / 80) + 2;
+    const rows = Math.ceil(window.innerHeight / 80) + 2;
+    const total = cols * rows;
+
+    for (let i = 0; i < total; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'emoji-cell';
+      cell.textContent = emojis[i % emojis.length];
+      cell.style.setProperty('--dur', (2.5 + Math.random() * 2) + 's');
+      cell.style.setProperty('--delay', (Math.random() * 2) + 's');
+      cell.style.setProperty('--rot', (Math.random() * 30 - 15) + 'deg');
+      wallpaper.appendChild(cell);
+    }
   </script>
+
 </body>
 </html>
-
